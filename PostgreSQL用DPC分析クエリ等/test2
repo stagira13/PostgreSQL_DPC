@@ -1,0 +1,79 @@
+Sub ConvertXlsToXlsxRecursive()
+    Dim rootPath As String
+    Dim folders As Collection
+    Dim wb As Workbook
+    Dim newPath As String
+    Dim count As Long, errCount As Long
+    Dim fileName As String
+    Dim curFolder As Variant
+
+    ' ルートフォルダ選択
+    With Application.FileDialog(msoFileDialogFolderPicker)
+        .Title = "ルートフォルダを選択（配下の日別フォルダを再帰処理します）"
+        If .Show <> -1 Then Exit Sub
+        rootPath = .SelectedItems(1) & "\"
+    End With
+
+    ' サブフォルダを再帰的に全部集める（ルート自身も含む）
+    Set folders = New Collection
+    CollectFolders rootPath, folders
+
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+    Application.AskToUpdateLinks = False
+
+    ' 集めた各フォルダ内のxlsを変換
+    For Each curFolder In folders
+        fileName = Dir(CStr(curFolder) & "*.xls")
+        Do While fileName <> ""
+            If LCase(Right(fileName, 4)) = ".xls" Then
+                On Error Resume Next
+                Set wb = Nothing
+                Set wb = Workbooks.Open(CStr(curFolder) & fileName, UpdateLinks:=0)
+                If Not wb Is Nothing Then
+                    newPath = CStr(curFolder) & Left(fileName, Len(fileName) - 4) & ".xlsx"
+                    wb.SaveAs fileName:=newPath, FileFormat:=51
+                    wb.Close SaveChanges:=False
+                    count = count + 1
+                Else
+                    errCount = errCount + 1
+                End If
+                On Error GoTo 0
+            End If
+            fileName = Dir
+        Loop
+    Next curFolder
+
+    Application.AskToUpdateLinks = True
+    Application.DisplayAlerts = True
+    Application.ScreenUpdating = True
+
+    MsgBox count & " 件を変換しました。" & vbCrLf & _
+           "失敗: " & errCount & " 件", vbInformation
+End Sub
+
+' 指定フォルダとその全サブフォルダをCollectionに追加（再帰）
+Sub CollectFolders(ByVal path As String, ByRef col As Collection)
+    Dim sub_ As String
+    Dim subDirs As Collection
+    Dim d As Variant
+
+    col.Add path
+
+    ' 直下のサブフォルダ名を一旦集める（Dirの再入を避けるため）
+    Set subDirs = New Collection
+    sub_ = Dir(path, vbDirectory)
+    Do While sub_ <> ""
+        If sub_ <> "." And sub_ <> ".." Then
+            If (GetAttr(path & sub_) And vbDirectory) = vbDirectory Then
+                subDirs.Add sub_
+            End If
+        End If
+        sub_ = Dir
+    Loop
+
+    ' 集めたサブフォルダを再帰処理
+    For Each d In subDirs
+        CollectFolders path & CStr(d) & "\", col
+    Next d
+End Sub
