@@ -1,0 +1,37 @@
+Sub ConvertXlsToXlsx()
+    Dim folderPath As String
+    Dim fileName As String
+    Dim wb As Workbook
+    Dim newPath As String
+    Dim count As Long
+
+    ' フォルダ選択ダイアログ
+    With Application.FileDialog(msoFileDialogFolderPicker)
+        .Title = "xlsファイルのあるフォルダを選択"
+        If .Show <> -1 Then Exit Sub
+        folderPath = .SelectedItems(1) & "\"
+    End With
+
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+
+    ' フォルダ内の全xlsを処理
+    fileName = Dir(folderPath & "*.xls")
+    Do While fileName <> ""
+        ' .xlsx や .xlsm を誤って拾わないよう拡張子を厳密チェック
+        If LCase(Right(fileName, 4)) = ".xls" Then
+            Set wb = Workbooks.Open(folderPath & fileName)
+            newPath = folderPath & Left(fileName, Len(fileName) - 4) & ".xlsx"
+            ' 51 = xlOpenXMLWorkbook (.xlsx)。全シートまとめて保存される
+            wb.SaveAs fileName:=newPath, FileFormat:=51
+            wb.Close SaveChanges:=False
+            count = count + 1
+        End If
+        fileName = Dir
+    Loop
+
+    Application.DisplayAlerts = True
+    Application.ScreenUpdating = True
+
+    MsgBox count & " 件を変換しました。", vbInformation
+End Sub
